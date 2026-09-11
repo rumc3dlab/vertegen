@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "level": "L3",
+  "numPcs": 15,
+  "numVertices": 10128,
+  "numFaces": 20256,
+  "numFeatures": 30384,
+  "mean": "generator_L3_mean.npy",
+  "basis": "generator_L3_basis.npy",
+  "scoreStds": "generator_L3_score_stds.npy",
+  "faces": "generator_L3_faces.npy",
+  "sliderMinimum": -3.0,
+  "sliderMaximum": 3.0,
+  "sliderStep": 0.01,
+  "pcIndexing": "zero-based"
+}

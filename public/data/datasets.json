@@ -1,0 +1,42 @@
+[
+  {
+    "key": "C1",
+    "npy": "fitted_pca_data_template_C1_trim.npy",
+    "labels": "C1.csv",
+    "generator": "generator_C1.json",
+    "analytics": "pca_analytics_C1.json",
+    "sampleMetrics": "pca_sample_metrics_C1.json"
+  },
+  {
+    "key": "C2",
+    "npy": "fitted_pca_data_template_C2_trim.npy",
+    "labels": "C2.csv",
+    "generator": "generator_C2.json",
+    "analytics": "pca_analytics_C2.json",
+    "sampleMetrics": "pca_sample_metrics_C2.json"
+  },
+  {
+    "key": "C5",
+    "npy": "fitted_pca_data_template_C5_trim.npy",
+    "labels": "C5.csv",
+    "generator": "generator_C5.json",
+    "analytics": "pca_analytics_C5.json",
+    "sampleMetrics": "pca_sample_metrics_C5.json"
+  },
+  {
+    "key": "T6",
+    "npy": "fitted_pca_data_template_T6_trim.npy",
+    "labels": "T6.csv",
+    "generator": "generator_T6.json",
+    "analytics": "pca_analytics_T6.json",
+    "sampleMetrics": "pca_sample_metrics_T6.json"
+  },
+  {
+    "key": "L3",
+    "npy": "fitted_pca_data_template_L3_trim.npy",
+    "labels": "L3.csv",
+    "generator": "generator_L3.json",
+    "analytics": "pca_analytics_L3.json",
+    "sampleMetrics": "pca_sample_metrics_L3.json"
+  }
+]

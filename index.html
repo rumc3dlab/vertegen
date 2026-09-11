@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light" data-theme-preference="default">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Interactive PCA exploration and vertebra mesh generation."
+    />
+    <title>VerteGen - The Vertebra PCA Explorer</title>
+
+    <script>
+      (() => {
+        const storageKey = "vertebra-pca-theme";
+        let preference = "default";
+
+        try {
+          const stored = window.localStorage.getItem(storageKey);
+          if (stored === "default" || stored === "light" || stored === "dark") {
+            preference = stored;
+          }
+        } catch {
+          // Storage can be unavailable in hardened or private browsing contexts.
+        }
+
+        const resolved = preference === "default"
+          ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : preference;
+
+        document.documentElement.dataset.themePreference = preference;
+        document.documentElement.setAttribute("data-bs-theme", resolved);
+      })();
+    </script>
+
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+      crossorigin="anonymous"
+    />
+  </head>
+
+  <body>
+    <a class="visually-hidden-focusable skip-link" href="#main-content">
+      Skip to main content
+    </a>
+
+    <header class="app-header">
+      <div class="container-fluid app-container">
+        <div class="brand-lockup">
+          <img id="app-logo" class="app-logo" alt="Application logo" />
+          <div class="brand-copy">
+            <div class="brand-title">VerteGen - The Vertebra PCA Explorer</div>
+            <div class="brand-subtitle">
+              Interactive companion app to
+              <cite>A morphable model of the human spine</cite>
+            </div>
+          </div>
+        </div>
+
+        <div class="header-tools">
+          <div class="theme-toolbar">
+            <span class="form-label d-block mb-1" id="theme-label">Appearance</span>
+            <div class="theme-control" role="group" aria-labelledby="theme-label">
+              <button
+                type="button"
+                class="theme-choice"
+                data-theme-choice="default"
+                title="Follow the operating system appearance"
+                aria-label="Use system appearance"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="13" rx="2"></rect>
+                  <path d="M8 21h8M12 17v4"></path>
+                </svg>
+                <span>Auto</span>
+              </button>
+              <button
+                type="button"
+                class="theme-choice"
+                data-theme-choice="light"
+                title="Use light appearance"
+                aria-label="Use light appearance"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4"></circle>
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path>
+                </svg>
+                <span>Light</span>
+              </button>
+              <button
+                type="button"
+                class="theme-choice"
+                data-theme-choice="dark"
+                title="Use dark appearance"
+                aria-label="Use dark appearance"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"></path>
+                </svg>
+                <span>Dark</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="dataset-toolbar">
+            <label class="form-label mb-1" for="dataset">Active template</label>
+            <div class="d-flex align-items-center gap-2">
+              <select
+                class="form-select form-select-sm dataset-select"
+                id="dataset"
+                aria-describedby="dataset-status"
+              ></select>
+              <span class="status-dot" id="dataset-status" aria-live="polite">
+                Loading
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container-fluid app-container py-4 py-lg-5" id="main-content">
+      <section class="intro-row" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Statistical shape modelling</p>
+          <h1 id="page-title">Explore variation. Generate anatomy.</h1>
+          <p class="intro-copy">
+            Inspect the PCA score space in two or three dimensions, then use the
+            same model to create an interactive vertebra mesh.
+          </p>
+        </div>
+
+        <div class="metric-strip" aria-label="Dataset summary">
+          <div class="metric-item">
+            <span class="metric-label">Samples</span>
+            <strong class="metric-value" id="sample-count">—</strong>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Components</span>
+            <strong class="metric-value" id="component-count">—</strong>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Cumulative variance</span>
+            <strong class="metric-value" id="cumulative-variance">—</strong>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Generator</span>
+            <strong class="metric-value metric-value-small" id="generator-state">
+              —
+            </strong>
+          </div>
+        </div>
+      </section>
+
+      <div
+        class="alert alert-danger d-none app-alert"
+        id="app-alert"
+        role="alert"
+        aria-live="assertive"
+      ></div>
+
+      <nav class="workspace-nav" aria-label="PCA workspace">
+        <div class="nav nav-pills" id="workspace-tabs" role="tablist">
+          <button
+            class="nav-link active"
+            id="pca-2d-tab"
+            data-workspace-target="#pca-2d-pane"
+            type="button"
+            role="tab"
+            aria-controls="pca-2d-pane"
+            aria-selected="true"
+          >
+            <span class="tab-kicker">Explore</span>
+            <span class="tab-title">2D PCA</span>
+          </button>
+
+          <button
+            class="nav-link"
+            id="pca-3d-tab"
+            data-workspace-target="#pca-3d-pane"
+            type="button"
+            role="tab"
+            aria-controls="pca-3d-pane"
+            aria-selected="false"
+          >
+            <span class="tab-kicker">Explore</span>
+            <span class="tab-title">3D PCA</span>
+          </button>
+
+          <button
+            class="nav-link"
+            id="analytics-tab"
+            data-workspace-target="#analytics-pane"
+            type="button" role="tab" aria-controls="analytics-pane" aria-selected="false">
+            <span class="tab-kicker">Model</span><span class="tab-title">PCA analytics</span>
+          </button>
+
+          <button
+            class="nav-link"
+            id="mesh-tab"
+            data-workspace-target="#mesh-pane"
+            type="button"
+            role="tab"
+            aria-controls="mesh-pane"
+            aria-selected="false"
+          >
+            <span class="tab-kicker">Synthesize</span>
+            <span class="tab-title">Mesh generation</span>
+          </button>
+        </div>
+      </nav>
+
+      <div class="tab-content workspace-content" id="workspace-tab-content">
+        <section
+          class="tab-pane fade show active"
+          id="pca-2d-pane"
+          role="tabpanel"
+          aria-labelledby="pca-2d-tab"
+          tabindex="0"
+        >
+          <div class="workspace-shell">
+            <aside class="control-panel" aria-label="2D plot controls">
+              <div class="panel-heading">
+                <p class="panel-kicker">Configuration</p>
+                <h2>2D score plot</h2>
+                <p>Compare two principal components and filter the cohort.</p>
+              </div>
+
+              <div class="control-section">
+                <h3>Axes</h3>
+                <div class="pc-select-grid pc-select-grid-2" id="pc-selects-2d"></div>
+              </div>
+
+              <div class="control-section">
+                <label class="form-label" for="colorBy-2d">Colour points by</label>
+                <select class="form-select" id="colorBy-2d">
+                  <option value="none">Single colour</option>
+                  <option value="gender">Gender</option>
+                  <option value="level">Vertebral level</option>
+                  <option value="age">Age</option>
+                  <option value="mahalanobis">Mahalanobis distance</option>
+                  <option value="surfaceArea">Surface area (mm²)</option>
+                  <option value="volume">Volume (CC)</option>
+                </select>
+                <label class="filter-check reference-toggle mt-3" for="show-references-2d">
+                  <input class="form-check-input" id="show-references-2d" type="checkbox" />
+                  <span>Show level reference means</span>
+                </label>
+              </div>
+
+              <div class="control-section">
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                  <h3 class="mb-0">Filters</h3>
+                  <span class="filter-summary" id="filter-summary-2d">All samples</span>
+                </div>
+                <div class="filter-controls" id="filters-2d"></div>
+              </div>
+
+              <div class="control-actions">
+                <button class="btn btn-primary" id="plotBtn-2d" type="button">
+                  Single plot
+                </button>
+                <button class="btn btn-outline-secondary" id="sweepBtn-2d" type="button">
+                  Show 9-plot PC sweep
+                </button>
+              </div>
+            </aside>
+
+            <div class="visualization-panel">
+              <div class="visualization-header">
+                <div>
+                  <p class="panel-kicker">Scatter plot</p>
+                  <h2 id="plot-title-2d">Principal-component comparison</h2>
+                </div>
+                <span class="sample-badge" id="visible-count-2d">— visible</span>
+              </div>
+
+              <div class="plot-stage" id="plot-2d" aria-label="2D PCA scatter plot"></div>
+              <div class="sweep-grid d-none" id="sweep-2d"></div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          class="tab-pane fade"
+          id="pca-3d-pane"
+          role="tabpanel"
+          aria-labelledby="pca-3d-tab"
+          tabindex="0"
+        >
+          <div class="workspace-shell">
+            <aside class="control-panel" aria-label="3D plot controls">
+              <div class="panel-heading">
+                <p class="panel-kicker">Configuration</p>
+                <h2>3D score plot</h2>
+                <p>Rotate through three PCA dimensions to inspect clusters and outliers.</p>
+              </div>
+
+              <div class="control-section">
+                <h3>Axes</h3>
+                <div class="pc-select-grid pc-select-grid-3" id="pc-selects-3d"></div>
+              </div>
+
+              <div class="control-section">
+                <label class="form-label" for="colorBy-3d">Colour points by</label>
+                <select class="form-select" id="colorBy-3d">
+                  <option value="none">Single colour</option>
+                  <option value="gender">Gender</option>
+                  <option value="level">Vertebral level</option>
+                  <option value="age">Age</option>
+                  <option value="mahalanobis">Mahalanobis distance</option>
+                  <option value="surfaceArea">Surface area (mm²)</option>
+                  <option value="volume">Volume (CC)</option>
+                </select>
+                <label class="filter-check reference-toggle mt-3" for="show-references-3d">
+                  <input class="form-check-input" id="show-references-3d" type="checkbox" />
+                  <span>Show level reference means</span>
+                </label>
+              </div>
+
+              <div class="control-section">
+                <div class="d-flex align-items-center justify-content-between gap-2">
+                  <h3 class="mb-0">Filters</h3>
+                  <span class="filter-summary" id="filter-summary-3d">All samples</span>
+                </div>
+                <div class="filter-controls" id="filters-3d"></div>
+              </div>
+
+              <div class="control-actions">
+                <button class="btn btn-primary" id="plotBtn-3d" type="button">
+                  Update plot
+                </button>
+              </div>
+            </aside>
+
+            <div class="visualization-panel">
+              <div class="visualization-header">
+                <div>
+                  <p class="panel-kicker">Interactive scene</p>
+                  <h2 id="plot-title-3d">Three-dimensional score space</h2>
+                </div>
+                <span class="sample-badge" id="visible-count-3d">— visible</span>
+              </div>
+
+              <div class="plot-stage plot-stage-3d" id="plot-3d" aria-label="3D PCA scatter plot"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-pane fade" id="analytics-pane" role="tabpanel" aria-labelledby="analytics-tab" tabindex="0">
+          <div class="analytics-grid">
+            <article class="analysis-card"><div class="visualization-header"><div><p class="panel-kicker">Variance</p><h2>Explained variance</h2></div></div><div id="variance-plot" class="analysis-plot"></div></article>
+            <article class="analysis-card"><div class="visualization-header"><div><p class="panel-kicker">Components</p><h2>Eigenvalue table</h2></div></div><div class="table-responsive"><table class="table eigen-table"><thead><tr><th>PC</th><th>Eigenvalue</th><th>Std. dev.</th><th>Explained</th><th>Cumulative</th></tr></thead><tbody id="eigenvalue-table-body"></tbody></table></div></article>
+          </div>
+        </section>
+
+        <section
+          class="tab-pane fade"
+          id="mesh-pane"
+          role="tabpanel"
+          aria-labelledby="mesh-tab"
+          tabindex="0"
+        >
+          <div class="mesh-shell">
+            <div class="mesh-header">
+              <div>
+                <p class="panel-kicker">Interactive reconstruction</p>
+                <h2 id="vertebra-title">Generated vertebra</h2>
+                <p id="vertebra-status" aria-live="polite">No generator loaded.</p>
+              </div>
+
+              <div class="generator-actions">
+                <button class="btn btn-outline-secondary" id="pc-values-download" type="button">Download PC values</button>
+                <label class="btn btn-outline-secondary mb-0" for="pc-values-load">Load PC values</label><input id="pc-values-load" class="visually-hidden" type="file" accept="application/json,.json" />
+                <button
+                  class="btn btn-outline-secondary"
+                  id="vertebra-download"
+                  type="button"
+                  disabled
+                >
+                  Download OBJ
+                </button>
+                <button class="btn btn-primary" id="vertebra-recenter" type="button">
+                  Recenter camera
+                </button>
+              </div>
+            </div>
+
+            <div class="generator-layout">
+              <aside class="generator-controls">
+                <section class="subject-picker" aria-labelledby="subject-picker-title">
+                  <div class="panel-heading panel-heading-compact">
+                    <p class="panel-kicker">Observed anatomy</p>
+                    <h3 id="subject-picker-title">Load a subject</h3>
+                    <p>
+                      Select a subject and its anatomical vertebral level. The
+                      current template is retained when possible, and the first
+                      15 PCA scores are loaded into the generator.
+                    </p>
+                  </div>
+
+                  <div class="subject-picker-grid">
+                    <div>
+                      <label class="form-label" for="vertebra-subject">Subject (ID · sex · age)</label>
+                      <select class="form-select" id="vertebra-subject" disabled>
+                        <option value="">Loading subjects…</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label class="form-label" for="vertebra-level">Anatomical vertebral level</label>
+                      <select class="form-select" id="vertebra-level" disabled>
+                        <option value="">Select a subject first</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    class="btn btn-outline-secondary w-100"
+                    id="vertebra-reset-subject"
+                    type="button"
+                    disabled
+                  >
+                    Reset subject
+                  </button>
+                </section>
+
+                <div class="generator-section-divider" aria-hidden="true"></div>
+
+                <div class="panel-heading panel-heading-compact">
+                  <p class="panel-kicker">Shape parameters</p>
+                  <h3>PCA components</h3>
+                  <p>
+                    Move each component in standard deviations from the model mean.
+                  </p>
+                </div>
+
+                <div class="mesh-toolbox">
+                  <button class="btn btn-outline-secondary w-100" id="vertebra-reset" type="button">Reset components</button>
+                  <button class="btn btn-outline-secondary w-100" id="vertebra-random" type="button">Random Vertebra</button>
+                  <div class="row g-2"><div class="col-7"><select class="form-select" id="animate-pc"></select></div><div class="col-5 d-grid"><button class="btn btn-outline-secondary" id="animate-pc-button" type="button">Animate</button></div></div>
+                  <label class="form-label" for="difference-reference">Difference reference</label><select class="form-select" id="difference-reference"><option value="none">No heatmap</option><option value="average">Average</option><option value="male">Average male</option><option value="female">Average female</option></select>
+                  <div class="mesh-metrics"><div><span>Surface area (mm²)</span><strong id="surface-area">—</strong></div><div><span>Volume (CC)</span><strong id="mesh-volume">—</strong></div></div>
+                </div>
+                <div class="sliders-list" id="vertebra-sliders"></div>
+              </aside>
+
+              <div class="viewer-stage">
+                <div class="viewer-hint">
+                  Drag to rotate · Scroll to zoom · Right-drag to pan
+                </div>
+                <div
+                  id="vertebra-viewer"
+                  aria-label="Interactive generated vertebra"
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          <article class="analysis-card mesh-validity-card" aria-labelledby="mahalanobis-title">
+            <div class="visualization-header">
+              <div>
+                <p class="panel-kicker">PCA validity</p>
+                <h2 id="mahalanobis-title">Mahalanobis distance</h2>
+                <p class="validity-description">
+                  Distances are calculated from the currently generated shape against
+                  the active cohort and its available demographic subgroups.
+                </p>
+              </div>
+            </div>
+            <div id="mahalanobis-summary" class="validity-content">
+              Generate or select a shape to calculate validity.
+            </div>
+          </article>
+        </section>
+      </div>
+    </main>
+
+    <footer class="app-footer">
+      <div class="container-fluid app-container footer-content">
+        <div class="footer-copy">
+          <p class="footer-attribution">
+            <strong>Dataset attribution:</strong>
+            Original CT and segmentation data from Wasserthal, Jakob (2023),
+            <cite>Dataset with segmentations of 117 important anatomical structures
+            in 1228 CT images</cite>, version 2.0.1, Zenodo.
+            <a
+              href="https://doi.org/10.5281/zenodo.10047292"
+              target="_blank"
+              rel="noopener noreferrer"
+            >doi:10.5281/zenodo.10047292</a>.
+            Licensed under
+            <a
+              href="https://creativecommons.org/licenses/by/4.0/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >CC BY 4.0</a>.
+          </p>
+          <p class="footer-technology">
+            PCA morphology viewer · Plotly + Three.js + Bootstrap
+          </p>
+        </div>
+
+        <div class="footer-institute-logo">
+          <img
+            class="institute-logo institute-logo-light"
+            src="./logo-whitemode.svg"
+            width="241"
+            height="58"
+            alt="Institute logo"
+          />
+          <img
+            class="institute-logo institute-logo-dark"
+            src="./logo-darkmode.svg"
+            width="241"
+            height="58"
+            alt="Institute logo"
+          />
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "level": "C5",
+  "numPcs": 15,
+  "numVertices": 10944,
+  "numFaces": 21896,
+  "numFeatures": 32832,
+  "mean": "generator_C5_mean.npy",
+  "basis": "generator_C5_basis.npy",
+  "scoreStds": "generator_C5_score_stds.npy",
+  "faces": "generator_C5_faces.npy",
+  "sliderMinimum": -3.0,
+  "sliderMaximum": 3.0,
+  "sliderStep": 0.01,
+  "pcIndexing": "zero-based"
+}

@@ -1,0 +1,16 @@
+{
+  "formatVersion": 1,
+  "level": "T6",
+  "numPcs": 15,
+  "numVertices": 10379,
+  "numFaces": 20758,
+  "numFeatures": 31137,
+  "mean": "generator_T6_mean.npy",
+  "basis": "generator_T6_basis.npy",
+  "scoreStds": "generator_T6_score_stds.npy",
+  "faces": "generator_T6_faces.npy",
+  "sliderMinimum": -3.0,
+  "sliderMaximum": 3.0,
+  "sliderStep": 0.01,
+  "pcIndexing": "zero-based"
+}
